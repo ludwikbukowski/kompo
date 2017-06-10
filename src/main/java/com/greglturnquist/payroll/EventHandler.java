@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  */
 // tag::code[]
 @Component
-@RepositoryEventHandler(Employee.class)
+@RepositoryEventHandler(ShopList.class)
 public class EventHandler {
 
 	private final SimpMessagingTemplate websocket;
@@ -44,11 +44,11 @@ public class EventHandler {
 		this.entityLinks = entityLinks;
 	}
 
-	@HandleAfterCreate
-	public void newEmployee(Employee employee) {
-		this.websocket.convertAndSend(
-				MESSAGE_PREFIX + "/newEmployee", getPath(employee));
-	}
+//	@HandleAfterCreate
+//	public void newEmployee(Employee employee) {
+//		this.websocket.convertAndSend(
+//				MESSAGE_PREFIX + "/newEmployee", getPath(employee));
+//	}
 
 	@HandleAfterCreate
 	public void newShopList(ShopList list) {
@@ -62,27 +62,27 @@ public class EventHandler {
 				MESSAGE_PREFIX + "/deleteShopList", getPath(list));
 	}
 
-	@HandleAfterDelete
-	public void deleteEmployee(Employee employee) {
-		this.websocket.convertAndSend(
-				MESSAGE_PREFIX + "/deleteEmployee", getPath(employee));
-	}
-
-	@HandleAfterSave
-	public void updateEmployee(Employee employee) {
-		this.websocket.convertAndSend(
-				MESSAGE_PREFIX + "/updateEmployee", getPath(employee));
-	}
-
-	/**
-	 * Take an {@link Employee} and get the URI using Spring Data REST's {@link EntityLinks}.
-	 *
-	 * @param employee
-	 */
-	private String getPath(Employee employee) {
-		return this.entityLinks.linkForSingleResource(employee.getClass(),
-				employee.getId()).toUri().getPath();
-	}
+//	@HandleAfterDelete
+//	public void deleteEmployee(Employee employee) {
+//		this.websocket.convertAndSend(
+//				MESSAGE_PREFIX + "/deleteEmployee", getPath(employee));
+//	}
+//
+//	@HandleAfterSave
+//	public void updateEmployee(Employee employee) {
+//		this.websocket.convertAndSend(
+//				MESSAGE_PREFIX + "/updateEmployee", getPath(employee));
+//	}
+//
+//	/**
+//	 * Take an {@link Employee} and get the URI using Spring Data REST's {@link EntityLinks}.
+//	 *
+//	 * @param employee
+//	 */
+//	private String getPath(Employee employee) {
+//		return this.entityLinks.linkForSingleResource(employee.getClass(),
+//				employee.getId()).toUri().getPath();
+//	}
 	private String getPath(ShopList shopList) {
 		return this.entityLinks.linkForSingleResource(shopList.getClass(),
 				shopList.getId()).toUri().getPath();

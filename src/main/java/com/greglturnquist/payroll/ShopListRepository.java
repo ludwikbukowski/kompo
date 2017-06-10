@@ -27,17 +27,17 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public interface ShopListRepository extends PagingAndSortingRepository<ShopList, Long> {
 
 	@Override
-	@PreAuthorize("@employeeRepository.findOne(#id)?.manager?.name == authentication?.name")
+//	@PreAuthorize("@shopListRepository.findOne(#id)?.manager?.name == authentication?.name")
 	void delete(@Param("id") Long id);
 
 	@Override
-	@PreAuthorize("#shopList?.manager == null " )
+//	@PreAuthorize("#shopList?.manager == null " )
 //			"or #shopList?.manager?.name == authentication?.name"
 
-	ShopList save(@Param("employee") ShopList list);
+	ShopList save(@Param("shopList") ShopList list);
 
 	@Override
-	@PreAuthorize("#employee?.manager?.name == authentication?.name")
+//	@PreAuthorize("#shopList?.manager?.name == authentication?.name")
 	void delete(@Param("shopList") ShopList list);
 
 }
