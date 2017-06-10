@@ -411,6 +411,7 @@ class ShopListList extends React.Component{
 					<tr>
 						<th>Name</th>
 						<th>Description</th>
+						<th>Managers</th>
 					</tr>
 					{shopLists}
 				</tbody>
@@ -545,10 +546,18 @@ class ShopListList extends React.Component{
 //
 class ShopList extends React.Component{
 	render() {
+	var mans =  this.props.shopList.managers.map(function(manager){
+                           return <li>{manager.name}</li>;
+                         });
 		return (
 			<tr>
 				<td>{this.props.shopList.name}</td>
 				<td>{this.props.shopList.description}</td>
+				<td><ul>{mans}</ul></td>
+<ul>
+
+          </ul>
+
 			</tr>
 		)
 	}

@@ -500,6 +500,11 @@
 								'th',
 								null,
 								'Description'
+							),
+							React.createElement(
+								'th',
+								null,
+								'Managers'
 							)
 						),
 						shopLists
@@ -649,6 +654,13 @@
 		_createClass(ShopList, [{
 			key: 'render',
 			value: function render() {
+				var mans = this.props.shopList.managers.map(function (manager) {
+					return React.createElement(
+						'li',
+						null,
+						manager.name
+					);
+				});
 				return React.createElement(
 					'tr',
 					null,
@@ -661,7 +673,17 @@
 						'td',
 						null,
 						this.props.shopList.description
-					)
+					),
+					React.createElement(
+						'td',
+						null,
+						React.createElement(
+							'ul',
+							null,
+							mans
+						)
+					),
+					React.createElement('ul', null)
 				);
 			}
 		}]);
