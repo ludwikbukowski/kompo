@@ -50,6 +50,18 @@ public class EventHandler {
 				MESSAGE_PREFIX + "/newEmployee", getPath(employee));
 	}
 
+	@HandleAfterCreate
+	public void newShopList(ShopList list) {
+		this.websocket.convertAndSend(
+				MESSAGE_PREFIX + "/newShopList", getPath(list));
+	}
+
+	@HandleAfterDelete
+	public void deleteShopList(ShopList list) {
+		this.websocket.convertAndSend(
+				MESSAGE_PREFIX + "/deleteShopList", getPath(list));
+	}
+
 	@HandleAfterDelete
 	public void deleteEmployee(Employee employee) {
 		this.websocket.convertAndSend(
@@ -70,6 +82,10 @@ public class EventHandler {
 	private String getPath(Employee employee) {
 		return this.entityLinks.linkForSingleResource(employee.getClass(),
 				employee.getId()).toUri().getPath();
+	}
+	private String getPath(ShopList shopList) {
+		return this.entityLinks.linkForSingleResource(shopList.getClass(),
+				shopList.getId()).toUri().getPath();
 	}
 
 }

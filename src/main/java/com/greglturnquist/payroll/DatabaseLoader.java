@@ -22,6 +22,8 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
+
 /**
  * @author Greg Turnquist
  */
@@ -30,13 +32,15 @@ import org.springframework.stereotype.Component;
 public class DatabaseLoader implements CommandLineRunner {
 
 	private final EmployeeRepository employees;
+	private final ShopListRepository shopLists;
 	private final ManagerRepository managers;
 
 	@Autowired
-	public DatabaseLoader(EmployeeRepository employeeRepository,
+	public DatabaseLoader(EmployeeRepository employeeRepository, ShopListRepository shopListRepository,
 						  ManagerRepository managerRepository) {
 
 		this.employees = employeeRepository;
+		this.shopLists = shopListRepository;
 		this.managers = managerRepository;
 	}
 
@@ -56,6 +60,9 @@ public class DatabaseLoader implements CommandLineRunner {
 //		this.employees.save(new Employee("Frodo", "Baggins", "ring bearer", greg));
 //		this.employees.save(new Employee("Bilbo", "Baggins", "burglar", greg));
 //		this.employees.save(new Employee("Gandalf", "the Grey", "wizard", greg));
+		HashSet<Manager> managers = new HashSet<>();
+		managers.add(greg);
+		this.shopLists.save(new ShopList("Moja lista", "na zakupy",  managers));
 
 		SecurityContextHolder.getContext().setAuthentication(
 			new UsernamePasswordAuthenticationToken("oliver", "doesn't matter",

@@ -73,588 +73,580 @@
 	
 			var _this = _possibleConstructorReturn(this, (App.__proto__ || Object.getPrototypeOf(App)).call(this, props));
 	
-			_this.state = { employees: [], attributes: [], page: 1, pageSize: 2, links: {} };
-			_this.updatePageSize = _this.updatePageSize.bind(_this);
-			_this.onCreate = _this.onCreate.bind(_this);
-			_this.onUpdate = _this.onUpdate.bind(_this);
-			_this.onDelete = _this.onDelete.bind(_this);
-			_this.onNavigate = _this.onNavigate.bind(_this);
-			_this.refreshCurrentPage = _this.refreshCurrentPage.bind(_this);
-			_this.refreshAndGoToLastPage = _this.refreshAndGoToLastPage.bind(_this);
+			_this.state = { shopLists: [] };
 			return _this;
 		}
 	
 		_createClass(App, [{
-			key: 'loadFromServer',
-			value: function loadFromServer(pageSize) {
-				var _this2 = this;
-	
-				follow(client, root, [{ rel: 'employees', params: { size: pageSize } }]).then(function (employeeCollection) {
-					return client({
-						method: 'GET',
-						path: employeeCollection.entity._links.profile.href,
-						headers: { 'Accept': 'application/schema+json' }
-					}).then(function (schema) {
-						// tag::json-schema-filter[]
-						/**
-	      * Filter unneeded JSON Schema properties, like uri references and
-	      * subtypes ($ref).
-	      */
-						Object.keys(schema.entity.properties).forEach(function (property) {
-							if (schema.entity.properties[property].hasOwnProperty('format') && schema.entity.properties[property].format === 'uri') {
-								delete schema.entity.properties[property];
-							} else if (schema.entity.properties[property].hasOwnProperty('$ref')) {
-								delete schema.entity.properties[property];
-							}
-						});
-	
-						_this2.schema = schema.entity;
-						_this2.links = employeeCollection.entity._links;
-						return employeeCollection;
-						// end::json-schema-filter[]
-					});
-				}).then(function (employeeCollection) {
-					_this2.page = employeeCollection.entity.page;
-					return employeeCollection.entity._embedded.employees.map(function (employee) {
-						return client({
-							method: 'GET',
-							path: employee._links.self.href
-						});
-					});
-				}).then(function (employeePromises) {
-					return when.all(employeePromises);
-				}).done(function (employees) {
-					_this2.setState({
-						page: _this2.page,
-						employees: employees,
-						attributes: Object.keys(_this2.schema.properties),
-						pageSize: pageSize,
-						links: _this2.links
-					});
-				});
-			}
-	
-			// tag::on-create[]
-	
-		}, {
-			key: 'onCreate',
-			value: function onCreate(newEmployee) {
-				follow(client, root, ['employees']).done(function (response) {
-					client({
-						method: 'POST',
-						path: response.entity._links.self.href,
-						entity: newEmployee,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				});
-			}
-			// end::on-create[]
-	
-			// tag::on-update[]
-	
-		}, {
-			key: 'onUpdate',
-			value: function onUpdate(employee, updatedEmployee) {
-				client({
-					method: 'PUT',
-					path: employee.entity._links.self.href,
-					entity: updatedEmployee,
-					headers: {
-						'Content-Type': 'application/json',
-						'If-Match': employee.headers.Etag
-					}
-				}).done(function (response) {
-					/* Let the websocket handler update the state */
-				}, function (response) {
-					if (response.status.code === 403) {
-						alert('ACCESS DENIED: You are not authorized to update ' + employee.entity._links.self.href);
-					}
-					if (response.status.code === 412) {
-						alert('DENIED: Unable to update ' + employee.entity._links.self.href + '. Your copy is stale.');
-					}
-				});
-			}
-			// end::on-update[]
-	
-			// tag::on-delete[]
-	
-		}, {
-			key: 'onDelete',
-			value: function onDelete(employee) {
-				client({ method: 'DELETE', path: employee.entity._links.self.href }).done(function (response) {/* let the websocket handle updating the UI */}, function (response) {
-					if (response.status.code === 403) {
-						alert('ACCESS DENIED: You are not authorized to delete ' + employee.entity._links.self.href);
-					}
-				});
-			}
-			// end::on-delete[]
-	
-		}, {
-			key: 'onNavigate',
-			value: function onNavigate(navUri) {
-				var _this3 = this;
-	
-				client({
-					method: 'GET',
-					path: navUri
-				}).then(function (employeeCollection) {
-					_this3.links = employeeCollection.entity._links;
-					_this3.page = employeeCollection.entity.page;
-	
-					return employeeCollection.entity._embedded.employees.map(function (employee) {
-						return client({
-							method: 'GET',
-							path: employee._links.self.href
-						});
-					});
-				}).then(function (employeePromises) {
-					return when.all(employeePromises);
-				}).done(function (employees) {
-					_this3.setState({
-						page: _this3.page,
-						employees: employees,
-						attributes: Object.keys(_this3.schema.properties),
-						pageSize: _this3.state.pageSize,
-						links: _this3.links
-					});
-				});
-			}
-		}, {
-			key: 'updatePageSize',
-			value: function updatePageSize(pageSize) {
-				if (pageSize !== this.state.pageSize) {
-					this.loadFromServer(pageSize);
-				}
-			}
-	
-			// tag::websocket-handlers[]
-	
-		}, {
-			key: 'refreshAndGoToLastPage',
-			value: function refreshAndGoToLastPage(message) {
-				var _this4 = this;
-	
-				follow(client, root, [{
-					rel: 'employees',
-					params: { size: this.state.pageSize }
-				}]).done(function (response) {
-					if (response.entity._links.last !== undefined) {
-						_this4.onNavigate(response.entity._links.last.href);
-					} else {
-						_this4.onNavigate(response.entity._links.self.href);
-					}
-				});
-			}
-		}, {
-			key: 'refreshCurrentPage',
-			value: function refreshCurrentPage(message) {
-				var _this5 = this;
-	
-				follow(client, root, [{
-					rel: 'employees',
-					params: {
-						size: this.state.pageSize,
-						page: this.state.page.number
-					}
-				}]).then(function (employeeCollection) {
-					_this5.links = employeeCollection.entity._links;
-					_this5.page = employeeCollection.entity.page;
-	
-					return employeeCollection.entity._embedded.employees.map(function (employee) {
-						return client({
-							method: 'GET',
-							path: employee._links.self.href
-						});
-					});
-				}).then(function (employeePromises) {
-					return when.all(employeePromises);
-				}).then(function (employees) {
-					_this5.setState({
-						page: _this5.page,
-						employees: employees,
-						attributes: Object.keys(_this5.schema.properties),
-						pageSize: _this5.state.pageSize,
-						links: _this5.links
-					});
-				});
-			}
-			// end::websocket-handlers[]
-	
-			// tag::register-handlers[]
-	
-		}, {
 			key: 'componentDidMount',
 			value: function componentDidMount() {
-				this.loadFromServer(this.state.pageSize);
-				stompClient.register([{ route: '/topic/newEmployee', callback: this.refreshAndGoToLastPage }, { route: '/topic/updateEmployee', callback: this.refreshCurrentPage }, { route: '/topic/deleteEmployee', callback: this.refreshCurrentPage }]);
-			}
-			// end::register-handlers[]
+				var _this2 = this;
 	
+				client({ method: 'GET', path: '/api/shopLists' }).done(function (response) {
+					_this2.setState({ shopLists: response.entity._embedded.shopLists });
+				});
+			}
 		}, {
 			key: 'render',
 			value: function render() {
-				return React.createElement(
-					'div',
-					null,
-					React.createElement(CreateDialog, { attributes: this.state.attributes, onCreate: this.onCreate }),
-					React.createElement(EmployeeList, { page: this.state.page,
-						employees: this.state.employees,
-						links: this.state.links,
-						pageSize: this.state.pageSize,
-						attributes: this.state.attributes,
-						onNavigate: this.onNavigate,
-						onUpdate: this.onUpdate,
-						onDelete: this.onDelete,
-						updatePageSize: this.updatePageSize })
-				);
+				return React.createElement(ShopListList, { shopLists: this.state.shopLists });
 			}
 		}]);
 	
 		return App;
 	}(React.Component);
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.state = {employees: [], lists: [], attributes: [], page: 1, pageSize: 2, links: {}};
+	//		this.updatePageSize = this.updatePageSize.bind(this);
+	//		this.onCreate = this.onCreate.bind(this);
+	//		this.onUpdate = this.onUpdate.bind(this);
+	//		this.onDelete = this.onDelete.bind(this);
+	//		this.onNavigate = this.onNavigate.bind(this);
+	//		this.refreshCurrentPage = this.refreshCurrentPage.bind(this);
+	//		this.refreshAndGoToLastPage = this.refreshAndGoToLastPage.bind(this);
+	//	}
+	//
+	//	loadFromServer(pageSize) {
+	//		follow(client, root, [
+	//				{rel: 'employees', params: {size: pageSize}}]
+	//		).then(employeeCollection => {
+	//			return client({
+	//				method: 'GET',
+	//				path: employeeCollection.entity._links.profile.href,
+	//				headers: {'Accept': 'application/schema+json'}
+	//			}).then(schema => {
+	//				// tag::json-schema-filter[]
+	//				/**
+	//				 * Filter unneeded JSON Schema properties, like uri references and
+	//				 * subtypes ($ref).
+	//				 */
+	//				Object.keys(schema.entity.properties).forEach(function (property) {
+	//					if (schema.entity.properties[property].hasOwnProperty('format') &&
+	//						schema.entity.properties[property].format === 'uri') {
+	//						delete schema.entity.properties[property];
+	//					}
+	//					else if (schema.entity.properties[property].hasOwnProperty('$ref')) {
+	//						delete schema.entity.properties[property];
+	//					}
+	//				});
+	//
+	//				this.schema = schema.entity;
+	//				this.links = employeeCollection.entity._links;
+	//				return employeeCollection;
+	//				// end::json-schema-filter[]
+	//			});
+	//		}).then(employeeCollection => {
+	//			this.page = employeeCollection.entity.page;
+	//			return employeeCollection.entity._embedded.employees.map(employee =>
+	//					client({
+	//						method: 'GET',
+	//						path: employee._links.self.href
+	//					})
+	//			);
+	//		}).then(employeePromises => {
+	//			return when.all(employeePromises);
+	//		}).done(employees => {
+	//			this.setState({
+	//				page: this.page,
+	//				employees: employees,
+	//				attributes: Object.keys(this.schema.properties),
+	//				pageSize: pageSize,
+	//				links: this.links
+	//			});
+	//		});
+	//	}
+	//
+	//	// tag::on-create[]
+	//	onCreate(newEmployee) {
+	//		follow(client, root, ['employees']).done(response => {
+	//			client({
+	//				method: 'POST',
+	//				path: response.entity._links.self.href,
+	//				entity: newEmployee,
+	//				headers: {'Content-Type': 'application/json'}
+	//			})
+	//		})
+	//	}
+	//	// end::on-create[]
+	//
+	//	// tag::on-update[]
+	//	onUpdate(employee, updatedEmployee) {
+	//		client({
+	//			method: 'PUT',
+	//			path: employee.entity._links.self.href,
+	//			entity: updatedEmployee,
+	//			headers: {
+	//				'Content-Type': 'application/json',
+	//				'If-Match': employee.headers.Etag
+	//			}
+	//		}).done(response => {
+	//			/* Let the websocket handler update the state */
+	//		}, response => {
+	//			if (response.status.code === 403) {
+	//				alert('ACCESS DENIED: You are not authorized to update ' +
+	//					employee.entity._links.self.href);
+	//			}
+	//			if (response.status.code === 412) {
+	//				alert('DENIED: Unable to update ' + employee.entity._links.self.href +
+	//					'. Your copy is stale.');
+	//			}
+	//		});
+	//	}
+	//	// end::on-update[]
+	//
+	//	// tag::on-delete[]
+	//	onDelete(employee) {
+	//		client({method: 'DELETE', path: employee.entity._links.self.href}
+	//		).done(response => {/* let the websocket handle updating the UI */},
+	//		response => {
+	//			if (response.status.code === 403) {
+	//				alert('ACCESS DENIED: You are not authorized to delete ' +
+	//					employee.entity._links.self.href);
+	//			}
+	//		});
+	//	}
+	//	// end::on-delete[]
+	//
+	//	onNavigate(navUri) {
+	//		client({
+	//			method: 'GET',
+	//			path: navUri
+	//		}).then(employeeCollection => {
+	//			this.links = employeeCollection.entity._links;
+	//			this.page = employeeCollection.entity.page;
+	//
+	//			return employeeCollection.entity._embedded.employees.map(employee =>
+	//					client({
+	//						method: 'GET',
+	//						path: employee._links.self.href
+	//					})
+	//			);
+	//		}).then(employeePromises => {
+	//			return when.all(employeePromises);
+	//		}).done(employees => {
+	//			this.setState({
+	//				page: this.page,
+	//				employees: employees,
+	//				attributes: Object.keys(this.schema.properties),
+	//				pageSize: this.state.pageSize,
+	//				links: this.links
+	//			});
+	//		});
+	//	}
+	//
+	//	updatePageSize(pageSize) {
+	//		if (pageSize !== this.state.pageSize) {
+	//			this.loadFromServer(pageSize);
+	//		}
+	//	}
+	//
+	//	// tag::websocket-handlers[]
+	//	refreshAndGoToLastPage(message) {
+	//		follow(client, root, [{
+	//			rel: 'employees',
+	//			params: {size: this.state.pageSize}
+	//		}]).done(response => {
+	//			if (response.entity._links.last !== undefined) {
+	//				this.onNavigate(response.entity._links.last.href);
+	//			} else {
+	//				this.onNavigate(response.entity._links.self.href);
+	//			}
+	//		})
+	//	}
+	//
+	//	refreshCurrentPage(message) {
+	//		follow(client, root, [{
+	//			rel: 'employees',
+	//			params: {
+	//				size: this.state.pageSize,
+	//				page: this.state.page.number
+	//			}
+	//		}]).then(employeeCollection => {
+	//			this.links = employeeCollection.entity._links;
+	//			this.page = employeeCollection.entity.page;
+	//
+	//			return employeeCollection.entity._embedded.employees.map(employee => {
+	//				return client({
+	//					method: 'GET',
+	//					path: employee._links.self.href
+	//				})
+	//			});
+	//		}).then(employeePromises => {
+	//			return when.all(employeePromises);
+	//		}).then(employees => {
+	//			this.setState({
+	//				page: this.page,
+	//				employees: employees,
+	//				attributes: Object.keys(this.schema.properties),
+	//				pageSize: this.state.pageSize,
+	//				links: this.links
+	//			});
+	//		});
+	//	}
+	//	// end::websocket-handlers[]
+	//
+	//	// tag::register-handlers[]
+	//	componentDidMount() {
+	//		this.loadFromServer(this.state.pageSize);
+	//		stompClient.register([
+	//			{route: '/topic/newEmployee', callback: this.refreshAndGoToLastPage},
+	//			{route: '/topic/newShopList', callback: this.refreshAndGoToLastPage},
+	//			{route: '/topic/updateEmployee', callback: this.refreshCurrentPage},
+	//			{route: '/topic/deleteEmployee', callback: this.refreshCurrentPage}
+	//		]);
+	//	}
+	//	// end::register-handlers[]
+	//
+	//	render() {
+	//		return (
+	//			<div>
+	//				<CreateDialog attributes={this.state.attributes} onCreate={this.onCreate}/>
+	//				<CreateDialog2 attributes={this.state.attributes} onCreate={this.onCreate}/>
+	//				<EmployeeList page={this.state.page}
+	//							  employees={this.state.employees}
+	//							  links={this.state.links}
+	//							  pageSize={this.state.pageSize}
+	//							  attributes={this.state.attributes}
+	//							  onNavigate={this.onNavigate}
+	//							  onUpdate={this.onUpdate}
+	//							  onDelete={this.onDelete}
+	//							  updatePageSize={this.updatePageSize}/>
+	//			</div>
+	//		)
+	//	}
+	//}
+	//
+	//class CreateDialog extends React.Component {
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.handleSubmit = this.handleSubmit.bind(this);
+	//	}
+	//
+	//	handleSubmit(e) {
+	//		e.preventDefault();
+	//		var newEmployee = {};
+	//		this.props.attributes.forEach(attribute => {
+	//			newEmployee[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+	//		});
+	//		this.props.onCreate(newEmployee);
+	//		this.props.attributes.forEach(attribute => {
+	//			ReactDOM.findDOMNode(this.refs[attribute]).value = ''; // clear out the dialog's inputs
+	//		});
+	//		window.location = "#";
+	//	}
+	//
+	//	render() {
+	//		var inputs = this.props.attributes.map(attribute =>
+	//				<p key={attribute}>
+	//					<input type="text" placeholder={attribute} ref={attribute} className="field" />
+	//				</p>
+	//		);
+	//		return (
+	//			<div>
+	//				<a href="#createEmployee">Create</a>
+	//
+	//				<div id="createEmployee" className="modalDialog">
+	//					<div>
+	//						<a href="#" title="Close" className="close">X</a>
+	//
+	//						<h2>Create new employee</h2>
+	//
+	//						<form>
+	//							{inputs}
+	//							<button onClick={this.handleSubmit}>Create</button>
+	//						</form>
+	//					</div>
+	//				</div>
+	//			</div>
+	//		)
+	//	}
+	//}
+	//
+	//class CreateDialog2 extends React.Component {
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.handleSubmit = this.handleSubmit.bind(this);
+	//	}
+	//
+	//	handleSubmit(e) {
+	//		e.preventDefault();
+	//		var newShopList = {};
+	//		this.props.attributes.forEach(attribute => {
+	//			newShopList[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+	//		});
+	//		this.props.onCreate(newShopList);
+	//		this.props.attributes.forEach(attribute => {
+	//			ReactDOM.findDOMNode(this.refs[attribute]).value = ''; // clear out the dialog's inputs
+	//		});
+	//		window.location = "#";
+	//	}
+	//
+	//	render() {
+	//		var inputs = this.props.attributes.map(attribute =>
+	//				<p key={attribute}>
+	//					<input type="text" placeholder={attribute} ref={attribute} className="field" />
+	//				</p>
+	//		);
+	//		return (
+	//			<div>
+	//				<a href="#createShopList">Create ShopList</a>
+	//
+	//				<div id="createShopList" className="modalDialog">
+	//					<div>
+	//						<a href="#" title="Close" className="close">X</a>
+	//
+	//						<h2>Create new employee</h2>
+	//
+	//						<form>
+	//							{inputs}
+	//							<button onClick={this.handleSubmit}>Create</button>
+	//						</form>
+	//					</div>
+	//				</div>
+	//			</div>
+	//		)
+	//	}
+	//}
+	//
+	//
+	//
+	//
+	//class UpdateDialog extends React.Component {
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.handleSubmit = this.handleSubmit.bind(this);
+	//	}
+	//
+	//	handleSubmit(e) {
+	//		e.preventDefault();
+	//		var updatedEmployee = {};
+	//		this.props.attributes.forEach(attribute => {
+	//			updatedEmployee[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+	//		});
+	//		this.props.onUpdate(this.props.employee, updatedEmployee);
+	//		window.location = "#";
+	//	}
+	//
+	//	render() {
+	//		var inputs = this.props.attributes.map(attribute =>
+	//				<p key={this.props.employee.entity[attribute]}>
+	//					<input type="text" placeholder={attribute}
+	//						   defaultValue={this.props.employee.entity[attribute]}
+	//						   ref={attribute} className="field" />
+	//				</p>
+	//		);
+	//
+	//		var dialogId = "updateEmployee-" + this.props.employee.entity._links.self.href;
+	//
+	//		return (
+	//			<div>
+	//				<a href={"#" + dialogId}>Update</a>
+	//
+	//				<div id={dialogId} className="modalDialog">
+	//					<div>
+	//						<a href="#" title="Close" className="close">X</a>
+	//
+	//						<h2>Update an employee</h2>
+	//
+	//						<form>
+	//							{inputs}
+	//							<button onClick={this.handleSubmit}>Update</button>
+	//						</form>
+	//					</div>
+	//				</div>
+	//			</div>
+	//		)
+	//	}
+	//
+	//}
+	//
 	
-	var CreateDialog = function (_React$Component2) {
-		_inherits(CreateDialog, _React$Component2);
 	
-		function CreateDialog(props) {
-			_classCallCheck(this, CreateDialog);
+	var ShopListList = function (_React$Component2) {
+		_inherits(ShopListList, _React$Component2);
 	
-			var _this6 = _possibleConstructorReturn(this, (CreateDialog.__proto__ || Object.getPrototypeOf(CreateDialog)).call(this, props));
+		function ShopListList() {
+			_classCallCheck(this, ShopListList);
 	
-			_this6.handleSubmit = _this6.handleSubmit.bind(_this6);
-			return _this6;
+			return _possibleConstructorReturn(this, (ShopListList.__proto__ || Object.getPrototypeOf(ShopListList)).apply(this, arguments));
 		}
 	
-		_createClass(CreateDialog, [{
-			key: 'handleSubmit',
-			value: function handleSubmit(e) {
-				var _this7 = this;
-	
-				e.preventDefault();
-				var newEmployee = {};
-				this.props.attributes.forEach(function (attribute) {
-					newEmployee[attribute] = ReactDOM.findDOMNode(_this7.refs[attribute]).value.trim();
-				});
-				this.props.onCreate(newEmployee);
-				this.props.attributes.forEach(function (attribute) {
-					ReactDOM.findDOMNode(_this7.refs[attribute]).value = ''; // clear out the dialog's inputs
-				});
-				window.location = "#";
-			}
-		}, {
+		_createClass(ShopListList, [{
 			key: 'render',
 			value: function render() {
-				var inputs = this.props.attributes.map(function (attribute) {
-					return React.createElement(
-						'p',
-						{ key: attribute },
-						React.createElement('input', { type: 'text', placeholder: attribute, ref: attribute, className: 'field' })
-					);
+				var shopLists = this.props.shopLists.map(function (shopList) {
+					return React.createElement(ShopList, { key: shopList._links.self.href, shopList: shopList });
 				});
 				return React.createElement(
-					'div',
+					'table',
 					null,
 					React.createElement(
-						'a',
-						{ href: '#createEmployee' },
-						'Create'
-					),
-					React.createElement(
-						'div',
-						{ id: 'createEmployee', className: 'modalDialog' },
-						React.createElement(
-							'div',
-							null,
-							React.createElement(
-								'a',
-								{ href: '#', title: 'Close', className: 'close' },
-								'X'
-							),
-							React.createElement(
-								'h2',
-								null,
-								'Create new employee'
-							),
-							React.createElement(
-								'form',
-								null,
-								inputs,
-								React.createElement(
-									'button',
-									{ onClick: this.handleSubmit },
-									'Create'
-								)
-							)
-						)
-					)
-				);
-			}
-		}]);
-	
-		return CreateDialog;
-	}(React.Component);
-	
-	var UpdateDialog = function (_React$Component3) {
-		_inherits(UpdateDialog, _React$Component3);
-	
-		function UpdateDialog(props) {
-			_classCallCheck(this, UpdateDialog);
-	
-			var _this8 = _possibleConstructorReturn(this, (UpdateDialog.__proto__ || Object.getPrototypeOf(UpdateDialog)).call(this, props));
-	
-			_this8.handleSubmit = _this8.handleSubmit.bind(_this8);
-			return _this8;
-		}
-	
-		_createClass(UpdateDialog, [{
-			key: 'handleSubmit',
-			value: function handleSubmit(e) {
-				var _this9 = this;
-	
-				e.preventDefault();
-				var updatedEmployee = {};
-				this.props.attributes.forEach(function (attribute) {
-					updatedEmployee[attribute] = ReactDOM.findDOMNode(_this9.refs[attribute]).value.trim();
-				});
-				this.props.onUpdate(this.props.employee, updatedEmployee);
-				window.location = "#";
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				var _this10 = this;
-	
-				var inputs = this.props.attributes.map(function (attribute) {
-					return React.createElement(
-						'p',
-						{ key: _this10.props.employee.entity[attribute] },
-						React.createElement('input', { type: 'text', placeholder: attribute,
-							defaultValue: _this10.props.employee.entity[attribute],
-							ref: attribute, className: 'field' })
-					);
-				});
-	
-				var dialogId = "updateEmployee-" + this.props.employee.entity._links.self.href;
-	
-				return React.createElement(
-					'div',
-					null,
-					React.createElement(
-						'a',
-						{ href: "#" + dialogId },
-						'Update'
-					),
-					React.createElement(
-						'div',
-						{ id: dialogId, className: 'modalDialog' },
-						React.createElement(
-							'div',
-							null,
-							React.createElement(
-								'a',
-								{ href: '#', title: 'Close', className: 'close' },
-								'X'
-							),
-							React.createElement(
-								'h2',
-								null,
-								'Update an employee'
-							),
-							React.createElement(
-								'form',
-								null,
-								inputs,
-								React.createElement(
-									'button',
-									{ onClick: this.handleSubmit },
-									'Update'
-								)
-							)
-						)
-					)
-				);
-			}
-		}]);
-	
-		return UpdateDialog;
-	}(React.Component);
-	
-	var EmployeeList = function (_React$Component4) {
-		_inherits(EmployeeList, _React$Component4);
-	
-		function EmployeeList(props) {
-			_classCallCheck(this, EmployeeList);
-	
-			var _this11 = _possibleConstructorReturn(this, (EmployeeList.__proto__ || Object.getPrototypeOf(EmployeeList)).call(this, props));
-	
-			_this11.handleNavFirst = _this11.handleNavFirst.bind(_this11);
-			_this11.handleNavPrev = _this11.handleNavPrev.bind(_this11);
-			_this11.handleNavNext = _this11.handleNavNext.bind(_this11);
-			_this11.handleNavLast = _this11.handleNavLast.bind(_this11);
-			_this11.handleInput = _this11.handleInput.bind(_this11);
-			return _this11;
-		}
-	
-		_createClass(EmployeeList, [{
-			key: 'handleInput',
-			value: function handleInput(e) {
-				e.preventDefault();
-				var pageSize = ReactDOM.findDOMNode(this.refs.pageSize).value;
-				if (/^[0-9]+$/.test(pageSize)) {
-					this.props.updatePageSize(pageSize);
-				} else {
-					ReactDOM.findDOMNode(this.refs.pageSize).value = pageSize.substring(0, pageSize.length - 1);
-				}
-			}
-		}, {
-			key: 'handleNavFirst',
-			value: function handleNavFirst(e) {
-				e.preventDefault();
-				this.props.onNavigate(this.props.links.first.href);
-			}
-		}, {
-			key: 'handleNavPrev',
-			value: function handleNavPrev(e) {
-				e.preventDefault();
-				this.props.onNavigate(this.props.links.prev.href);
-			}
-		}, {
-			key: 'handleNavNext',
-			value: function handleNavNext(e) {
-				e.preventDefault();
-				this.props.onNavigate(this.props.links.next.href);
-			}
-		}, {
-			key: 'handleNavLast',
-			value: function handleNavLast(e) {
-				e.preventDefault();
-				this.props.onNavigate(this.props.links.last.href);
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				var _this12 = this;
-	
-				var pageInfo = this.props.page.hasOwnProperty("number") ? React.createElement(
-					'h3',
-					null,
-					'Employees - Page ',
-					this.props.page.number + 1,
-					' of ',
-					this.props.page.totalPages
-				) : null;
-	
-				var employees = this.props.employees.map(function (employee) {
-					return React.createElement(Employee, { key: employee.entity._links.self.href,
-						employee: employee,
-						attributes: _this12.props.attributes,
-						onUpdate: _this12.props.onUpdate,
-						onDelete: _this12.props.onDelete });
-				});
-	
-				var navLinks = [];
-				if ("first" in this.props.links) {
-					navLinks.push(React.createElement(
-						'button',
-						{ key: 'first', onClick: this.handleNavFirst },
-						'<<'
-					));
-				}
-				if ("prev" in this.props.links) {
-					navLinks.push(React.createElement(
-						'button',
-						{ key: 'prev', onClick: this.handleNavPrev },
-						'<'
-					));
-				}
-				if ("next" in this.props.links) {
-					navLinks.push(React.createElement(
-						'button',
-						{ key: 'next', onClick: this.handleNavNext },
-						'>'
-					));
-				}
-				if ("last" in this.props.links) {
-					navLinks.push(React.createElement(
-						'button',
-						{ key: 'last', onClick: this.handleNavLast },
-						'>>'
-					));
-				}
-	
-				return React.createElement(
-					'div',
-					null,
-					pageInfo,
-					React.createElement('input', { ref: 'pageSize', defaultValue: this.props.pageSize, onInput: this.handleInput }),
-					React.createElement(
-						'table',
+						'tbody',
 						null,
 						React.createElement(
-							'tbody',
+							'tr',
 							null,
 							React.createElement(
-								'tr',
+								'th',
 								null,
-								React.createElement(
-									'th',
-									null,
-									'First Name'
-								),
-								React.createElement(
-									'th',
-									null,
-									'Last Name'
-								),
-								React.createElement(
-									'th',
-									null,
-									'Description'
-								),
-								React.createElement(
-									'th',
-									null,
-									'Manager'
-								),
-								React.createElement('th', null),
-								React.createElement('th', null)
+								'Name'
 							),
-							employees
-						)
-					),
-					React.createElement(
-						'div',
-						null,
-						navLinks
+							React.createElement(
+								'th',
+								null,
+								'Description'
+							)
+						),
+						shopLists
 					)
 				);
 			}
 		}]);
 	
-		return EmployeeList;
+		return ShopListList;
 	}(React.Component);
+	//
+	//class EmployeeList extends React.Component {
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.handleNavFirst = this.handleNavFirst.bind(this);
+	//		this.handleNavPrev = this.handleNavPrev.bind(this);
+	//		this.handleNavNext = this.handleNavNext.bind(this);
+	//		this.handleNavLast = this.handleNavLast.bind(this);
+	//		this.handleInput = this.handleInput.bind(this);
+	//	}
+	//
+	//	handleInput(e) {
+	//		e.preventDefault();
+	//		var pageSize = ReactDOM.findDOMNode(this.refs.pageSize).value;
+	//		if (/^[0-9]+$/.test(pageSize)) {
+	//			this.props.updatePageSize(pageSize);
+	//		} else {
+	//			ReactDOM.findDOMNode(this.refs.pageSize).value = pageSize.substring(0, pageSize.length - 1);
+	//		}
+	//	}
+	//
+	//	handleNavFirst(e) {
+	//		e.preventDefault();
+	//		this.props.onNavigate(this.props.links.first.href);
+	//	}
+	//
+	//	handleNavPrev(e) {
+	//		e.preventDefault();
+	//		this.props.onNavigate(this.props.links.prev.href);
+	//	}
+	//
+	//	handleNavNext(e) {
+	//		e.preventDefault();
+	//		this.props.onNavigate(this.props.links.next.href);
+	//	}
+	//
+	//	handleNavLast(e) {
+	//		e.preventDefault();
+	//		this.props.onNavigate(this.props.links.last.href);
+	//	}
+	//
+	//	render() {
+	//		var pageInfo = this.props.page.hasOwnProperty("number") ?
+	//			<h3>Employees - Page {this.props.page.number + 1} of {this.props.page.totalPages}</h3> : null;
+	//
+	//		var employees = this.props.employees.map(employee =>
+	//			<Employee key={employee.entity._links.self.href}
+	//					  employee={employee}
+	//					  attributes={this.props.attributes}
+	//					  onUpdate={this.props.onUpdate}
+	//					  onDelete={this.props.onDelete}/>
+	//		);
+	//
+	//		var navLinks = [];
+	//		if ("first" in this.props.links) {
+	//			navLinks.push(<button key="first" onClick={this.handleNavFirst}>&lt;&lt;</button>);
+	//		}
+	//		if ("prev" in this.props.links) {
+	//			navLinks.push(<button key="prev" onClick={this.handleNavPrev}>&lt;</button>);
+	//		}
+	//		if ("next" in this.props.links) {
+	//			navLinks.push(<button key="next" onClick={this.handleNavNext}>&gt;</button>);
+	//		}
+	//		if ("last" in this.props.links) {
+	//			navLinks.push(<button key="last" onClick={this.handleNavLast}>&gt;&gt;</button>);
+	//		}
+	//
+	//		return (
+	//			<div>
+	//				{pageInfo}
+	//				<input ref="pageSize" defaultValue={this.props.pageSize} onInput={this.handleInput}/>
+	//				<table>
+	//					<tbody>
+	//						<tr>
+	//							<th>First Name</th>
+	//							<th>Last Name</th>
+	//							<th>Description</th>
+	//							<th>Manager</th>
+	//							<th></th>
+	//							<th></th>
+	//						</tr>
+	//						{employees}
+	//					</tbody>
+	//				</table>
+	//				<div>
+	//					{navLinks}
+	//				</div>
+	//			</div>
+	//		)
+	//	}
+	//}
+	//
+	//// tag::employee[]
+	//class Employee extends React.Component {
+	//
+	//	constructor(props) {
+	//		super(props);
+	//		this.handleDelete = this.handleDelete.bind(this);
+	//	}
+	//
+	//	handleDelete() {
+	//		this.props.onDelete(this.props.employee);
+	//	}
+	//
+	//	render() {
+	//		return (
+	//			<tr>
+	//				<td>{this.props.employee.entity.firstName}</td>
+	//				<td>{this.props.employee.entity.lastName}</td>
+	//				<td>{this.props.employee.entity.description}</td>
+	//				<td>{this.props.employee.entity.manager.name}</td>
+	//				<td>
+	//					<UpdateDialog employee={this.props.employee}
+	//								  attributes={this.props.attributes}
+	//								  onUpdate={this.props.onUpdate}/>
+	//				</td>
+	//				<td>
+	//					<button onClick={this.handleDelete}>Delete</button>
+	//				</td>
+	//			</tr>
+	//		)
+	//	}
+	//}
+	//
 	
-	// tag::employee[]
 	
+	var ShopList = function (_React$Component3) {
+		_inherits(ShopList, _React$Component3);
 	
-	var Employee = function (_React$Component5) {
-		_inherits(Employee, _React$Component5);
+		function ShopList() {
+			_classCallCheck(this, ShopList);
 	
-		function Employee(props) {
-			_classCallCheck(this, Employee);
-	
-			var _this13 = _possibleConstructorReturn(this, (Employee.__proto__ || Object.getPrototypeOf(Employee)).call(this, props));
-	
-			_this13.handleDelete = _this13.handleDelete.bind(_this13);
-			return _this13;
+			return _possibleConstructorReturn(this, (ShopList.__proto__ || Object.getPrototypeOf(ShopList)).apply(this, arguments));
 		}
 	
-		_createClass(Employee, [{
-			key: 'handleDelete',
-			value: function handleDelete() {
-				this.props.onDelete(this.props.employee);
-			}
-		}, {
+		_createClass(ShopList, [{
 			key: 'render',
 			value: function render() {
 				return React.createElement(
@@ -663,44 +655,18 @@
 					React.createElement(
 						'td',
 						null,
-						this.props.employee.entity.firstName
+						this.props.shopList.name
 					),
 					React.createElement(
 						'td',
 						null,
-						this.props.employee.entity.lastName
-					),
-					React.createElement(
-						'td',
-						null,
-						this.props.employee.entity.description
-					),
-					React.createElement(
-						'td',
-						null,
-						this.props.employee.entity.manager.name
-					),
-					React.createElement(
-						'td',
-						null,
-						React.createElement(UpdateDialog, { employee: this.props.employee,
-							attributes: this.props.attributes,
-							onUpdate: this.props.onUpdate })
-					),
-					React.createElement(
-						'td',
-						null,
-						React.createElement(
-							'button',
-							{ onClick: this.handleDelete },
-							'Delete'
-						)
+						this.props.shopList.description
 					)
 				);
 			}
 		}]);
 	
-		return Employee;
+		return ShopList;
 	}(React.Component);
 	// end::employee[]
 	
