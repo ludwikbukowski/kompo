@@ -1,16 +1,19 @@
 # Lista zakupów Online
 
-Webowa aplikacja umożliwiająca szybkie tworzenie oraz dzielenie się wspólnymi listami zakupów. 
+Webowa aplikacja umożliwiająca szybkie tworzenie oraz dzielenie się wspólnymi listami zakupów. Pomiędzy użytkonikami. Równoczesna edycja, dostęp online, ograniczenie dostępu tylko dla wybranuch użytkowników.
 
 ## Plann aplikacji
 
-* obsługa wielu użytkowników
-* zarządzanie użytkownikami
-* nadawanie uprawnień
-* tworzenie list zakupów
-* równoczesna edycja list zakupów przez użytkowników
-* lista zakupów składa się z nazw przedmiotu, ilość sztuk, ceny, proponowanego miejsca zakupu
-* lista obsługuję odznaczanie zakupionych pozycji
+* użytkownicy
+  * obsługa wielu użytkowników
+  * zarządzanie użytkownikami (dodawanie, edycja, usuwanie)
+  * zarządzanie uprawnnieniami użytkowników
+* lista zakupów
+  * tworzenie list zakupów
+  * zarządzanie listą (dodawanie, edycja...)
+  * równoczesna edycja list zakupów przez użytkowników
+  * lista zakupów składa się z nazw przedmiotu, ilość sztuk, ceny, proponowanego miejsca zakupu
+  * lista obsługuję odznaczanie zakupionych pozycji
 
 ## Wykonanie
 
@@ -24,8 +27,10 @@ Trzeba z 8 razy reinstallować maven'a i zadziała w końcu.
 
 ## Co udało się osiągnąć
 
-Coś działa.
+Stworzenie pierwszego działającego prototypu. Obsługa logowania oraz tworzenie pojedyńczej listy zakupów.
 
 ## Braki
 
-Cała aplikacja.
+Frontend.
+
+Złożona funkcjonalność aplikacji.

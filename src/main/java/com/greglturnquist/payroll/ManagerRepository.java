@@ -27,6 +27,8 @@ public interface ManagerRepository extends Repository<Manager, Long> {
 
 	Manager save(Manager manager);
 
+	void deleteManagerById(long id);
+
 	Manager findByName(String name);
 
 }

@@ -30,5 +30,6 @@ public class HomeController {
 		return "index";
 	}
 
+
 }
 // end::code[]

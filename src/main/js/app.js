@@ -7,8 +7,6 @@ const client = require('./client');
 
 const follow = require('./follow'); // function to hop multiple links by "rel"
 
-const stompClient = require('./websocket-listener');
-
 const root = '/api';
 
 class App extends React.Component {
@@ -25,7 +23,6 @@ constructor(props) {
 
 	render() {
 		return (
-
 			<ShopListList shopLists={this.state.shopLists}/>
 		)
 	}
@@ -70,6 +67,12 @@ onCreate(newShopList) {
 	});
 
 }
+    onDelete(shopList) {
+        client({method: 'DELETE', path: shopList._links.self.href}).done(response => {
+            this.loadFromServer(this.state.pageSize);
+        });
+    }
+
 	onNavigate(navUri) {
     		client({method: 'GET', path: navUri}).done(shopListCollection => {
     			this.setState({
@@ -101,7 +104,7 @@ class CreateDialog extends React.Component {
 	}
 
 	handleSubmit(e) {
-		e.preventDefault();e
+		e.preventDefault();
 		var newShopList = {};
 //		this.props.attributes.forEach(attribute => {
 //			newShopList[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
@@ -143,7 +146,7 @@ class CreateDialog extends React.Component {
 		                <p key="description">
         			    <input type="text" placeholder="description" ref="description" className="field" />
                         </p>
-							<button onClick={this.handleSubmit}>Create</button>
+							<button onClick={this.handleSubmit}>Create record</button>
 						</form>
 					</div>
 				</div>
@@ -164,6 +167,7 @@ class ShopLists extends React.Component{
 						<th>Name</th>
 						<th>Description</th>
 						<th>Managers</th>
+						<th></th>
 					</tr>
 					{shopLists}
 				</tbody>
@@ -172,14 +176,25 @@ class ShopLists extends React.Component{
 	}
 }
 class ShopList extends React.Component{
+    constructor(props) {
+        super(props);
+        this.handleDelete = this.handleDelete.bind(this);
+    }
+
+    handleDelete() {
+        this.props.onDelete(this.props.shopLists);
+    }
+
 	render() {
-	var mans =  this.props.shopList.managers.map(function(manager){
-                           return <li>{manager.name}</li>;
-                         });
+        var mans =  this.props.shopList.managers.map(function(manager){
+            return <li>{manager.name}</li>;
+        });
+
 		return (
 			<tr>
 				<td>{this.props.shopList.name}</td>
 				<td>{this.props.shopList.description}</td>
+				<td><button onClick={this.handleDelete}>Delete</button></td>
 				<td><ul>{mans}</ul></td>
           <ul>
 
@@ -187,12 +202,59 @@ class ShopList extends React.Component{
 
 			</tr>
 		)
-	}
+	};
 }
+
 // end::employee[]
+
+class ManagerList extends React.Component{
+    render() {
+        var managers = this.props.managers.map(employee =>
+            <Manager key={manager._links.self.href} manager={manager}/>
+    );
+        return (
+            <table>
+            <tbody>
+            <tr>
+            <th>First Name</th>
+        <th>Last Name</th>
+        <th>Description</th>
+        </tr>
+        {managers}
+        </tbody>
+        </table>
+    )
+    }
+}
+
+class Employee extends React.Component {
+
+    constructor(props) {
+        super(props);
+        this.handleDelete = this.handleDelete.bind(this);
+    }
+
+    handleDelete() {
+        this.props.onDelete(this.props.manager);
+    }
+
+    render() {
+        return (
+			<tr>
+				<td>{this.props.manager.name}</td>
+				<td>{this.props.manager.description}</td>
+				<td>{this.props.manager.description}</td>
+				<td>
+					<button onClick={this.handleDelete}>Delete</button>
+				</td>
+			</tr>
+        )
+    }
+}
+
 
 ReactDOM.render(
 	<App />,
-	document.getElementById('react')
+    document.getElementById('react')
 )
 
