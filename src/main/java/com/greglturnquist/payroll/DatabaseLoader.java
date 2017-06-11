@@ -31,15 +31,13 @@ import java.util.HashSet;
 @Component
 public class DatabaseLoader implements CommandLineRunner {
 
-	private final EmployeeRepository employees;
 	private final ShopListRepository shopLists;
 	private final ManagerRepository managers;
 
 	@Autowired
-	public DatabaseLoader(EmployeeRepository employeeRepository, ShopListRepository shopListRepository,
+	public DatabaseLoader(ShopListRepository shopListRepository,
 						  ManagerRepository managerRepository) {
 
-		this.employees = employeeRepository;
 		this.shopLists = shopListRepository;
 		this.managers = managerRepository;
 	}
