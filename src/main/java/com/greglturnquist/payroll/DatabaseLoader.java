@@ -60,7 +60,7 @@ public class DatabaseLoader implements CommandLineRunner {
 //		this.employees.save(new Employee("Gandalf", "the Grey", "wizard", greg));
 		HashSet<Manager> managers = new HashSet<>();
 		managers.add(greg);
-		this.shopLists.save(new ShopList("Moja lista", "na zakupy",  managers));
+		//this.shopLists.save(new ShopList("Moja lista", "na zakupy",  managers));
 
 		SecurityContextHolder.getContext().setAuthentication(
 				new UsernamePasswordAuthenticationToken("oliver", "doesn't matter",
@@ -69,6 +69,10 @@ public class DatabaseLoader implements CommandLineRunner {
 //		this.employees.save(new Employee("Samwise", "Gamgee", "gardener", oliver));
 //		this.employees.save(new Employee("Merry", "Brandybuck", "pony rider", oliver));
 //		this.employees.save(new Employee("Peregrin", "Took", "pipe smoker", oliver));
+
+		this.shopLists.save(new ShopList("item1", "desc1"));
+		this.shopLists.save(new ShopList("item2", "desc2"));
+		this.shopLists.save(new ShopList("item3", "desc3"));
 
 		SecurityContextHolder.clearContext();
 	}

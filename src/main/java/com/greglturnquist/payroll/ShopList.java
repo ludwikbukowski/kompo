@@ -15,11 +15,15 @@
  */
 package com.greglturnquist.payroll;
 
+import com.greglturnquist.payroll.Manager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
+import org.springframework.security.core.Authentication;
 
 import javax.persistence.*;
 import java.util.HashSet;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Set;
 
 
@@ -28,61 +32,39 @@ import java.util.Set;
 @Entity
 public class ShopList {
 
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
-	public Long getVersion() {
-		return version;
-	}
-
-	public void setVersion(Long version) {
-		this.version = version;
-	}
-
-	public Set<Manager> getManagers() {
-		return managers;
-	}
-
-	public void setManagers(Set<Manager> managers) {
-		this.managers = managers;
-	}
-
 	private @Id @GeneratedValue(strategy=GenerationType.AUTO) Long id;
 	private String name;
 	private String description;
 
 	private @Version @JsonIgnore Long version;
 
+	public void setManagers(Set<Manager> managers) {
+
+		this.managers = managers;
+	}
+
 	private @ManyToMany
 	Set<Manager> managers = new HashSet<>();
 
-	private ShopList() {}
+//	@PrePersist @PreUpdate
+//	public void prePersist() {
+//		managers = new HashSet<>();
+//		managers.add((Manager)SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+//	}
+//
+
+	public ShopList() {
+	}
 
 	public ShopList(String name, String description, HashSet<Manager> managers) {
 		this.name = name;
 		this.description = description;
 		this.managers = managers;
 	}
+	public ShopList(String name, String description) {
+		this.name = name;
+		this.description = description;
+	}
+
 }
 // end::code[]

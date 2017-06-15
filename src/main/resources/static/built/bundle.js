@@ -64,424 +64,544 @@
 	var root = '/api';
 	
 	var App = function (_React$Component) {
-		_inherits(App, _React$Component);
+	    _inherits(App, _React$Component);
 	
-		function App(props) {
-			_classCallCheck(this, App);
+	    function App(props) {
+	        _classCallCheck(this, App);
 	
-			var _this = _possibleConstructorReturn(this, (App.__proto__ || Object.getPrototypeOf(App)).call(this, props));
+	        var _this = _possibleConstructorReturn(this, (App.__proto__ || Object.getPrototypeOf(App)).call(this, props));
 	
-			_this.state = { shopLists: [], attributes: [] };
-			_this.onCreate = _this.onCreate.bind(_this);
-			return _this;
-		}
+	        _this.state = { shopLists: [], attributes: [] };
+	        _this.onCreate = _this.onCreate.bind(_this);
+	        _this.onDelete = _this.onDelete.bind(_this);
+	        _this.onUpdate = _this.onUpdate.bind(_this);
+	        return _this;
+	    }
 	
-		_createClass(App, [{
-			key: 'componentDidMount',
-			value: function componentDidMount() {
-				this.loadFromServer(this.state.pageSize);
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				return React.createElement(ShopListList, { shopLists: this.state.shopLists });
-			}
-		}, {
-			key: 'loadFromServer',
-			value: function loadFromServer(pageSize) {
-				var _this2 = this;
+	    _createClass(App, [{
+	        key: 'componentDidMount',
+	        value: function componentDidMount() {
+	            this.loadFromServer(this.state.pageSize);
+	        }
+	    }, {
+	        key: 'loadFromServer',
+	        value: function loadFromServer(pageSize) {
+	            var _this2 = this;
 	
-				follow(client, root, [{ rel: 'shopLists', params: { size: pageSize } }]).then(function (shopListCollection) {
-					return client({
-						method: 'GET',
-						path: shopListCollection.entity._links.profile.href,
-						headers: { 'Accept': 'application/schema+json' }
-					}).then(function (schema) {
-						_this2.schema = schema.entity;
-						return shopListCollection;
-					});
-				}).done(function (shopListCollection) {
-					_this2.setState({
-						shopLists: shopListCollection.entity._embedded.shopLists,
-						attributes: Object.keys(_this2.schema.properties),
-						pageSize: pageSize,
-						links: shopListCollection.entity._links });
-				});
-			}
-		}, {
-			key: 'onCreate',
-			value: function onCreate(newShopList) {
-				var _this3 = this;
+	            follow(client, root, [{ rel: 'shopLists', params: { size: pageSize } }]).then(function (shopListCollection) {
+	                return client({
+	                    method: 'GET',
+	                    path: shopListCollection.entity._links.profile.href,
+	                    headers: { 'Accept': 'application/schema+json' }
+	                }).then(function (schema) {
+	                    _this2.schema = schema.entity;
+	                    return shopListCollection;
+	                });
+	            }).done(function (shopListCollection) {
+	                _this2.setState({
+	                    shopLists: shopListCollection.entity._embedded.shopLists,
+	                    attributes: Object.keys(_this2.schema.properties),
+	                    pageSize: pageSize,
+	                    links: shopListCollection.entity._links
+	                });
+	            });
+	        }
+	    }, {
+	        key: 'onCreate',
+	        value: function onCreate(newShopList) {
+	            var _this3 = this;
 	
-				follow(client, root, ['shopLists']).then(function (shopListCollection) {
-					return client({
-						method: 'POST',
-						path: shopListCollection.entity._links.self.href,
-						entity: newShopList,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}).then(function (response) {
-					return follow(client, root, [{ rel: 'shopLists', params: { 'size': _this3.state.pageSize } }]);
-				}).done(function (response) {
-					if (typeof response.entity._links.last != "undefined") {
-						_this3.onNavigate(response.entity._links.last.href);
-					} else {
-						_this3.onNavigate(response.entity._links.self.href);
-					}
-				});
-			}
-		}, {
-			key: 'onDelete',
-			value: function onDelete(shopList) {
-				var _this4 = this;
+	            follow(client, root, ['shopLists']).then(function (shopListCollection) {
+	                return client({
+	                    method: 'POST',
+	                    path: shopListCollection.entity._links.self.href,
+	                    entity: newShopList,
+	                    headers: { 'Content-Type': 'application/json' }
+	                });
+	            }).then(function (response) {
+	                return follow(client, root, [{ rel: 'shopLists', params: { 'size': _this3.state.pageSize } }]);
+	            }).done(function (response) {
+	                if (typeof response.entity._links.last != "undefined") {
+	                    _this3.onNavigate(response.entity._links.last.href);
+	                } else {
+	                    _this3.onNavigate(response.entity._links.self.href);
+	                }
+	            });
+	        }
+	    }, {
+	        key: 'onUpdate',
+	        value: function onUpdate(el, updatedEl) {
+	            var _this4 = this;
 	
-				client({ method: 'DELETE', path: shopList._links.self.href }).done(function (response) {
-					_this4.loadFromServer(_this4.state.pageSize);
-				});
-			}
-		}, {
-			key: 'onNavigate',
-			value: function onNavigate(navUri) {
-				var _this5 = this;
+	            client({
+	                method: 'PUT',
+	                path: el._links.self.href,
+	                entity: updatedEl,
+	                headers: {
+	                    'Content-Type': 'application/json'
+	                    // ,'If-Match': el.headers.Etag
+	                }
+	            }).done(function (response) {
+	                _this4.loadFromServer(_this4.state.pageSize);
+	            }, function (response) {
+	                if (response.status.code === 412) {
+	                    alert('DENIED: Unable to update ' + el._links.self.href + '. Your copy is stale.');
+	                }
+	            });
+	        }
+	    }, {
+	        key: 'onDelete',
+	        value: function onDelete(el) {
+	            var _this5 = this;
 	
-				client({ method: 'GET', path: navUri }).done(function (shopListCollection) {
-					_this5.setState({
-						shopLists: shopListCollection.entity._embedded.shopLists,
-						attributes: _this5.state.attributes,
-						pageSize: _this5.state.pageSize,
-						links: shopListCollection.entity._links
-					});
-				});
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				return React.createElement(
-					'div',
-					null,
-					React.createElement(CreateDialog, { attributes: this.state.attributes, onCreate: this.onCreate }),
-					React.createElement(ShopLists, { shopLists: this.state.shopLists,
-						links: this.state.links,
-						pageSize: this.state.pageSize,
-						onNavigate: this.onNavigate })
-				);
-			}
-		}]);
+	            client({ method: 'DELETE', path: el._links.self.href }).done(function (response) {
+	                _this5.loadFromServer(_this5.state.pageSize);
+	            });
+	        }
+	    }, {
+	        key: 'onNavigate',
+	        value: function onNavigate(navUri) {
+	            var _this6 = this;
 	
-		return App;
+	            client({ method: 'GET', path: navUri }).done(function (shopListCollection) {
+	                _this6.setState({
+	                    shopLists: shopListCollection.entity._embedded.shopLists,
+	                    attributes: _this6.state.attributes,
+	                    pageSize: _this6.state.pageSize,
+	                    links: shopListCollection.entity._links
+	                });
+	            });
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	            return React.createElement(
+	                'div',
+	                null,
+	                React.createElement(CreateDialog, { attributes: this.state.attributes, onCreate: this.onCreate }),
+	                React.createElement(ShopLists, { shopLists: this.state.shopLists,
+	                    links: this.state.links,
+	                    pageSize: this.state.pageSize,
+	                    onDelete: this.onDelete,
+	                    onUpdate: this.onUpdate,
+	                    onNavigate: this.onNavigate,
+	                    attributes: this.state.attributes })
+	            );
+	        }
+	    }]);
+	
+	    return App;
 	}(React.Component);
 	
 	var CreateDialog = function (_React$Component2) {
-		_inherits(CreateDialog, _React$Component2);
+	    _inherits(CreateDialog, _React$Component2);
 	
-		function CreateDialog(props) {
-			_classCallCheck(this, CreateDialog);
+	    function CreateDialog(props) {
+	        _classCallCheck(this, CreateDialog);
 	
-			var _this6 = _possibleConstructorReturn(this, (CreateDialog.__proto__ || Object.getPrototypeOf(CreateDialog)).call(this, props));
+	        var _this7 = _possibleConstructorReturn(this, (CreateDialog.__proto__ || Object.getPrototypeOf(CreateDialog)).call(this, props));
 	
-			_this6.handleSubmit = _this6.handleSubmit.bind(_this6);
-			return _this6;
-		}
+	        _this7.handleSubmit = _this7.handleSubmit.bind(_this7);
+	        return _this7;
+	    }
 	
-		_createClass(CreateDialog, [{
-			key: 'handleSubmit',
-			value: function handleSubmit(e) {
-				e.preventDefault();
-				var newShopList = {};
-				//		this.props.attributes.forEach(attribute => {
-				//			newShopList[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
-				//		});
-				newShopList["name"] = ReactDOM.findDOMNode(this.refs["name"]).value.trim();
-				newShopList["description"] = ReactDOM.findDOMNode(this.refs["description"]).value.trim();
+	    _createClass(CreateDialog, [{
+	        key: 'handleSubmit',
+	        value: function handleSubmit(e) {
+	            e.preventDefault();
+	            var newShopList = {};
+	            //		this.props.attributes.forEach(attribute => {
+	            //			newShopList[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+	            //		});
+	            newShopList["name"] = ReactDOM.findDOMNode(this.refs["name"]).value.trim();
+	            newShopList["description"] = ReactDOM.findDOMNode(this.refs["description"]).value.trim();
 	
-				this.props.onCreate(newShopList);
+	            this.props.onCreate(newShopList);
 	
-				// clear out the dialog's inputs
-				//		this.props.attributes.forEach(attribute => {
-				//			ReactDOM.findDOMNode(this.refs[attribute]).value = '';
-				//		});
-				ReactDOM.findDOMNode(this.refs["name"]).value = '';
-				ReactDOM.findDOMNode(this.refs["description"]).value = '';
+	            // clear out the dialog's inputs
+	            //		this.props.attributes.forEach(attribute => {
+	            //			ReactDOM.findDOMNode(this.refs[attribute]).value = '';
+	            //		});
+	            ReactDOM.findDOMNode(this.refs["name"]).value = '';
+	            ReactDOM.findDOMNode(this.refs["description"]).value = '';
 	
-				// Navigate away from the dialog to hide it.
-				window.location = "#";
-			}
-		}, {
-			key: 'render',
-			value: function render() {
+	            // Navigate away from the dialog to hide it.
+	            window.location = "#";
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
 	
-				return React.createElement(
-					'div',
-					null,
-					React.createElement(
-						'a',
-						{ href: '#createShopList' },
-						'Create'
-					),
-					React.createElement(
-						'div',
-						{ id: 'createShopList', className: 'modalDialog' },
-						React.createElement(
-							'div',
-							null,
-							React.createElement(
-								'a',
-								{ href: '#', title: 'Close', className: 'close' },
-								'X'
-							),
-							React.createElement(
-								'h2',
-								null,
-								'Create new ShopList'
-							),
-							React.createElement(
-								'form',
-								null,
-								React.createElement(
-									'p',
-									{ key: 'name' },
-									React.createElement('input', { type: 'text', placeholder: 'name', ref: 'name', className: 'field' })
-								),
-								React.createElement(
-									'p',
-									{ key: 'description' },
-									React.createElement('input', { type: 'text', placeholder: 'description', ref: 'description', className: 'field' })
-								),
-								React.createElement(
-									'button',
-									{ onClick: this.handleSubmit },
-									'Create record'
-								)
-							)
-						)
-					)
-				);
-			}
-		}]);
+	            return React.createElement(
+	                'div',
+	                null,
+	                React.createElement(
+	                    'a',
+	                    { href: '#createShopList' },
+	                    'Create'
+	                ),
+	                React.createElement(
+	                    'div',
+	                    { id: 'createShopList', className: 'modalDialog' },
+	                    React.createElement(
+	                        'div',
+	                        null,
+	                        React.createElement(
+	                            'a',
+	                            { href: '#', title: 'Close', className: 'close' },
+	                            'X'
+	                        ),
+	                        React.createElement(
+	                            'h2',
+	                            null,
+	                            'Create new ShopList'
+	                        ),
+	                        React.createElement(
+	                            'form',
+	                            null,
+	                            React.createElement(
+	                                'p',
+	                                { key: 'name' },
+	                                React.createElement('input', { type: 'text', placeholder: 'name', ref: 'name', className: 'field' })
+	                            ),
+	                            React.createElement(
+	                                'p',
+	                                { key: 'description' },
+	                                React.createElement('input', { type: 'text', placeholder: 'description', ref: 'description', className: 'field' })
+	                            ),
+	                            React.createElement(
+	                                'button',
+	                                { onClick: this.handleSubmit },
+	                                'Create record'
+	                            )
+	                        )
+	                    )
+	                )
+	            );
+	        }
+	    }]);
 	
-		return CreateDialog;
+	    return CreateDialog;
 	}(React.Component);
 	
-	var ShopLists = function (_React$Component3) {
-		_inherits(ShopLists, _React$Component3);
+	var UpdateDialog = function (_React$Component3) {
+	    _inherits(UpdateDialog, _React$Component3);
 	
-		function ShopLists() {
-			_classCallCheck(this, ShopLists);
+	    function UpdateDialog(props) {
+	        _classCallCheck(this, UpdateDialog);
 	
-			return _possibleConstructorReturn(this, (ShopLists.__proto__ || Object.getPrototypeOf(ShopLists)).apply(this, arguments));
-		}
+	        var _this8 = _possibleConstructorReturn(this, (UpdateDialog.__proto__ || Object.getPrototypeOf(UpdateDialog)).call(this, props));
 	
-		_createClass(ShopLists, [{
-			key: 'render',
-			value: function render() {
-				var shopLists = this.props.shopLists.map(function (shopList) {
-					return React.createElement(ShopList, { key: shopList._links.self.href, shopList: shopList });
-				});
-				return React.createElement(
-					'table',
-					null,
-					React.createElement(
-						'tbody',
-						null,
-						React.createElement(
-							'tr',
-							null,
-							React.createElement(
-								'th',
-								null,
-								'Name'
-							),
-							React.createElement(
-								'th',
-								null,
-								'Description'
-							),
-							React.createElement(
-								'th',
-								null,
-								'Managers'
-							),
-							React.createElement('th', null)
-						),
-						shopLists
-					)
-				);
-			}
-		}]);
+	        _this8.handleSubmit = _this8.handleSubmit.bind(_this8);
+	        return _this8;
+	    }
 	
-		return ShopLists;
+	    _createClass(UpdateDialog, [{
+	        key: 'handleSubmit',
+	        value: function handleSubmit(e) {
+	            e.preventDefault();
+	            var updatedEl = {};
+	            // this.props.attributes.forEach(attribute => {
+	            //     updatedEl[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+	            // });
+	            updatedEl["name"] = ReactDOM.findDOMNode(this.refs["name"]).value.trim();
+	            updatedEl["description"] = ReactDOM.findDOMNode(this.refs["description"]).value.trim();
+	            this.props.onUpdate(this.props.shopList, updatedEl);
+	            window.location = "#";
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	            var _this9 = this;
+	
+	            var inputs = this.props.attributes.map(function (attribute) {
+	                return React.createElement(
+	                    'p',
+	                    { key: _this9.props.shopList[attribute] },
+	                    React.createElement('input', { type: 'text', placeholder: attribute,
+	                        defaultValue: _this9.props.shopList[attribute],
+	                        ref: attribute, className: 'field' })
+	                );
+	            });
+	
+	            var dialogId = "updateShopList-" + this.props.shopList._links.self.href;
+	
+	            return React.createElement(
+	                'div',
+	                null,
+	                React.createElement(
+	                    'a',
+	                    { href: "#" + dialogId },
+	                    'Update'
+	                ),
+	                React.createElement(
+	                    'div',
+	                    { id: dialogId, className: 'modalDialog' },
+	                    React.createElement(
+	                        'div',
+	                        null,
+	                        React.createElement(
+	                            'a',
+	                            { href: '#', title: 'Close', className: 'close' },
+	                            'X'
+	                        ),
+	                        React.createElement(
+	                            'h2',
+	                            null,
+	                            'Update a ShopList'
+	                        ),
+	                        React.createElement(
+	                            'form',
+	                            null,
+	                            inputs,
+	                            React.createElement(
+	                                'button',
+	                                { onClick: this.handleSubmit },
+	                                'Update record'
+	                            )
+	                        )
+	                    )
+	                )
+	            );
+	        }
+	    }]);
+	
+	    return UpdateDialog;
 	}(React.Component);
 	
-	var ShopList = function (_React$Component4) {
-		_inherits(ShopList, _React$Component4);
+	;
 	
-		function ShopList(props) {
-			_classCallCheck(this, ShopList);
+	var ShopLists = function (_React$Component4) {
+	    _inherits(ShopLists, _React$Component4);
 	
-			var _this8 = _possibleConstructorReturn(this, (ShopList.__proto__ || Object.getPrototypeOf(ShopList)).call(this, props));
+	    function ShopLists() {
+	        _classCallCheck(this, ShopLists);
 	
-			_this8.handleDelete = _this8.handleDelete.bind(_this8);
-			return _this8;
-		}
+	        return _possibleConstructorReturn(this, (ShopLists.__proto__ || Object.getPrototypeOf(ShopLists)).apply(this, arguments));
+	    }
 	
-		_createClass(ShopList, [{
-			key: 'handleDelete',
-			value: function handleDelete() {
-				this.props.onDelete(this.props.shopLists);
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				var mans = this.props.shopList.managers.map(function (manager) {
-					return React.createElement(
-						'li',
-						null,
-						manager.name
-					);
-				});
+	    _createClass(ShopLists, [{
+	        key: 'render',
+	        value: function render() {
+	            var _this11 = this;
 	
-				return React.createElement(
-					'tr',
-					null,
-					React.createElement(
-						'td',
-						null,
-						this.props.shopList.name
-					),
-					React.createElement(
-						'td',
-						null,
-						this.props.shopList.description
-					),
-					React.createElement(
-						'td',
-						null,
-						React.createElement(
-							'button',
-							{ onClick: this.handleDelete },
-							'Delete'
-						)
-					),
-					React.createElement(
-						'td',
-						null,
-						React.createElement(
-							'ul',
-							null,
-							mans
-						)
-					),
-					React.createElement('ul', null)
-				);
-			}
-		}]);
+	            var shopLists = this.props.shopLists.map(function (shopList) {
+	                return React.createElement(ShopList, { key: shopList._links.self.href,
+	                    shopList: shopList,
+	                    onDelete: _this11.props.onDelete,
+	                    onUpdate: _this11.props.onUpdate,
+	                    attributes: _this11.props.attributes });
+	            });
+	            return React.createElement(
+	                'table',
+	                null,
+	                React.createElement(
+	                    'tbody',
+	                    null,
+	                    React.createElement(
+	                        'tr',
+	                        null,
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'Name'
+	                        ),
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'Description'
+	                        ),
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'Manager'
+	                        ),
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'xx'
+	                        ),
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'yy'
+	                        )
+	                    ),
+	                    shopLists
+	                )
+	            );
+	        }
+	    }]);
 	
-		return ShopList;
+	    return ShopLists;
+	}(React.Component);
+	
+	var ShopList = function (_React$Component5) {
+	    _inherits(ShopList, _React$Component5);
+	
+	    function ShopList(props) {
+	        _classCallCheck(this, ShopList);
+	
+	        var _this12 = _possibleConstructorReturn(this, (ShopList.__proto__ || Object.getPrototypeOf(ShopList)).call(this, props));
+	
+	        _this12.handleDelete = _this12.handleDelete.bind(_this12);
+	        return _this12;
+	    }
+	
+	    _createClass(ShopList, [{
+	        key: 'handleDelete',
+	        value: function handleDelete(e) {
+	            this.props.onDelete(this.props.shopList);
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	            return React.createElement(
+	                'tr',
+	                null,
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    this.props.shopList.name
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    this.props.shopList.description
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    'Sztywny Greg'
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    React.createElement(UpdateDialog, { shopList: this.props.shopList,
+	                        onUpdate: this.props.onUpdate,
+	                        attributes: this.props.attributes })
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    React.createElement(
+	                        'button',
+	                        { onClick: this.handleDelete },
+	                        'Delete'
+	                    )
+	                )
+	            );
+	        }
+	    }]);
+	
+	    return ShopList;
 	}(React.Component);
 	
 	// end::employee[]
 	
-	var ManagerList = function (_React$Component5) {
-		_inherits(ManagerList, _React$Component5);
+	var Managers = function (_React$Component6) {
+	    _inherits(Managers, _React$Component6);
 	
-		function ManagerList() {
-			_classCallCheck(this, ManagerList);
+	    function Managers() {
+	        _classCallCheck(this, Managers);
 	
-			return _possibleConstructorReturn(this, (ManagerList.__proto__ || Object.getPrototypeOf(ManagerList)).apply(this, arguments));
-		}
+	        return _possibleConstructorReturn(this, (Managers.__proto__ || Object.getPrototypeOf(Managers)).apply(this, arguments));
+	    }
 	
-		_createClass(ManagerList, [{
-			key: 'render',
-			value: function render() {
-				var managers = this.props.managers.map(function (employee) {
-					return React.createElement(Manager, { key: manager._links.self.href, manager: manager });
-				});
-				return React.createElement(
-					'table',
-					null,
-					React.createElement(
-						'tbody',
-						null,
-						React.createElement(
-							'tr',
-							null,
-							React.createElement(
-								'th',
-								null,
-								'First Name'
-							),
-							React.createElement(
-								'th',
-								null,
-								'Last Name'
-							),
-							React.createElement(
-								'th',
-								null,
-								'Description'
-							)
-						),
-						managers
-					)
-				);
-			}
-		}]);
+	    _createClass(Managers, [{
+	        key: 'render',
+	        value: function render() {
+	            var managers = this.props.managers.map(function (employee) {
+	                return React.createElement(Manager, { key: manager._links.self.href, manager: manager });
+	            });
+	            return React.createElement(
+	                'table',
+	                null,
+	                React.createElement(
+	                    'tbody',
+	                    null,
+	                    React.createElement(
+	                        'tr',
+	                        null,
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'First Name'
+	                        ),
+	                        React.createElement(
+	                            'th',
+	                            null,
+	                            'Action'
+	                        )
+	                    ),
+	                    managers
+	                )
+	            );
+	        }
+	    }]);
 	
-		return ManagerList;
+	    return Managers;
 	}(React.Component);
 	
-	var Employee = function (_React$Component6) {
-		_inherits(Employee, _React$Component6);
+	var Manager = function (_React$Component7) {
+	    _inherits(Manager, _React$Component7);
 	
-		function Employee(props) {
-			_classCallCheck(this, Employee);
+	    function Manager(props) {
+	        _classCallCheck(this, Manager);
 	
-			var _this10 = _possibleConstructorReturn(this, (Employee.__proto__ || Object.getPrototypeOf(Employee)).call(this, props));
+	        var _this14 = _possibleConstructorReturn(this, (Manager.__proto__ || Object.getPrototypeOf(Manager)).call(this, props));
 	
-			_this10.handleDelete = _this10.handleDelete.bind(_this10);
-			return _this10;
-		}
+	        _this14.handleDelete = _this14.handleDelete.bind(_this14);
+	        return _this14;
+	    }
 	
-		_createClass(Employee, [{
-			key: 'handleDelete',
-			value: function handleDelete() {
-				this.props.onDelete(this.props.manager);
-			}
-		}, {
-			key: 'render',
-			value: function render() {
-				return React.createElement(
-					'tr',
-					null,
-					React.createElement(
-						'td',
-						null,
-						this.props.manager.name
-					),
-					React.createElement(
-						'td',
-						null,
-						this.props.manager.description
-					),
-					React.createElement(
-						'td',
-						null,
-						this.props.manager.description
-					),
-					React.createElement(
-						'td',
-						null,
-						React.createElement(
-							'button',
-							{ onClick: this.handleDelete },
-							'Delete'
-						)
-					)
-				);
-			}
-		}]);
+	    _createClass(Manager, [{
+	        key: 'handleDelete',
+	        value: function handleDelete() {
+	            this.props.onDelete(this.props.manager);
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	            var mans = this.props.shopList.managers.map(function (manager) {
+	                return React.createElement(
+	                    'li',
+	                    null,
+	                    manager.name
+	                );
+	            });
 	
-		return Employee;
+	            return React.createElement(
+	                'tr',
+	                null,
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    this.props.manager.name
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    React.createElement(
+	                        'button',
+	                        { onClick: this.handleDelete() },
+	                        'Delete'
+	                    )
+	                ),
+	                React.createElement(
+	                    'td',
+	                    null,
+	                    React.createElement(
+	                        'ul',
+	                        null,
+	                        mans
+	                    )
+	                )
+	            );
+	        }
+	    }]);
+	
+	    return Manager;
 	}(React.Component);
 	
 	ReactDOM.render(React.createElement(App, null), document.getElementById('react'));
